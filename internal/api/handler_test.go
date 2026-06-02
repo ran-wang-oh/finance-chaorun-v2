@@ -354,19 +354,23 @@ func TestGetResource_EntityIDRequired(t *testing.T) {
 	ts := testServer(NewHandler(nil))
 	defer ts.Close()
 
-	// GetResource without entity_id: handler passes empty entityID to service.
-	// With nil service, the Recoverer catches the panic → 500.
-	resp, err := http.Get(ts.URL + "/v1/resources/invoice://inv-001?trace_id=trace-001")
+	// GetResource without entity_id returns 400 with proper error envelope
+	resp, err := http.Get(ts.URL + "/v1/resources/invoice-inv-001?trace_id=trace-001")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 
-	// nil service causes panic → chi Recoverer returns 500
-	if resp.StatusCode != http.StatusInternalServerError {
-		// If service existed, it would return a proper error. With nil service we get 500.
-		// Either way, the test documents that entity_id and trace_id are passed through.
-		t.Logf("Got status %d (expected 500 with nil service)", resp.StatusCode)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+
+	pr := parseResponse(t, resp)
+	if pr.Error == nil || pr.Error.Code != "invalid_request" {
+		t.Fatalf("expected invalid_request error, got %+v", pr.Error)
+	}
+	if !strings.Contains(pr.Error.Message, "entity_id") {
+		t.Errorf("expected message about entity_id, got: %s", pr.Error.Message)
 	}
 }
 
@@ -505,4 +509,141 @@ func TestCatalogSchema_AlignsWithHandlerStructs(t *testing.T) {
 			t.Error("journal.post field not parsed correctly")
 		}
 	})
+
+	// finance.period.close → handler unmarshals: book_id, period
+	t.Run("period.close", func(t *testing.T) {
+		input := json.RawMessage(`{"book_id":"b1","period":"2026-03"}`)
+		var s struct {
+			BookID string `json:"book_id"`
+			Period string `json:"period"`
+		}
+		if err := json.Unmarshal(input, &s); err != nil {
+			t.Fatalf("period.close schema mismatch: %v", err)
+		}
+		if s.BookID != "b1" || s.Period != "2026-03" {
+			t.Error("period.close fields not parsed correctly")
+		}
+	})
+
+	// finance.risk.scan → handler unmarshals: book_id, period
+	t.Run("risk.scan", func(t *testing.T) {
+		input := json.RawMessage(`{"book_id":"b1","period":"2026-03"}`)
+		var s struct {
+			BookID string `json:"book_id"`
+			Period string `json:"period"`
+		}
+		if err := json.Unmarshal(input, &s); err != nil {
+			t.Fatalf("risk.scan schema mismatch: %v", err)
+		}
+		if s.BookID != "b1" || s.Period != "2026-03" {
+			t.Error("risk.scan fields not parsed correctly")
+		}
+	})
+
+	// finance.consistency.check → handler unmarshals: book_id, period
+	t.Run("consistency.check", func(t *testing.T) {
+		input := json.RawMessage(`{"book_id":"b1","period":"2026-03"}`)
+		var s struct {
+			BookID string `json:"book_id"`
+			Period string `json:"period"`
+		}
+		if err := json.Unmarshal(input, &s); err != nil {
+			t.Fatalf("consistency.check schema mismatch: %v", err)
+		}
+		if s.BookID != "b1" || s.Period != "2026-03" {
+			t.Error("consistency.check fields not parsed correctly")
+		}
+	})
+}
+
+func TestGetContext_MissingEntityID(t *testing.T) {
+	ts := testServer(NewHandler(nil))
+	defer ts.Close()
+
+	body := reqBody(t, provider.ProviderRequest{
+		TraceID: "trace-001",
+	})
+	resp, err := http.Post(ts.URL+"/v1/context", "application/json", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	pr := parseResponse(t, resp)
+	if pr.Error == nil || pr.Error.Code != "invalid_request" {
+		t.Fatalf("expected invalid_request error, got %+v", pr.Error)
+	}
+	if !strings.Contains(pr.Error.Message, "entity_id") {
+		t.Errorf("expected message about entity_id, got: %s", pr.Error.Message)
+	}
+}
+
+func TestGetContext_MissingTraceID(t *testing.T) {
+	ts := testServer(NewHandler(nil))
+	defer ts.Close()
+
+	body := reqBody(t, provider.ProviderRequest{
+		EntityID: "e1",
+	})
+	resp, err := http.Post(ts.URL+"/v1/context", "application/json", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	pr := parseResponse(t, resp)
+	if pr.Error == nil || pr.Error.Code != "invalid_request" {
+		t.Fatalf("expected invalid_request error, got %+v", pr.Error)
+	}
+	if !strings.Contains(pr.Error.Message, "trace_id") {
+		t.Errorf("expected message about trace_id, got: %s", pr.Error.Message)
+	}
+}
+
+func TestGetResource_MissingEntityID(t *testing.T) {
+	ts := testServer(NewHandler(nil))
+	defer ts.Close()
+
+	// Use a resource URI without :// so chi routing works.
+	// The entity_id validation happens before URI parsing.
+	resp, err := http.Get(ts.URL + "/v1/resources/invoice-inv-001?trace_id=trace-001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+
+	pr := parseResponse(t, resp)
+	if pr.Error == nil || pr.Error.Code != "invalid_request" {
+		t.Fatalf("expected invalid_request error, got %+v", pr.Error)
+	}
+	if !strings.Contains(pr.Error.Message, "entity_id") {
+		t.Errorf("expected message about entity_id, got: %s", pr.Error.Message)
+	}
+}
+
+func TestGetResource_MissingTraceID(t *testing.T) {
+	ts := testServer(NewHandler(nil))
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/v1/resources/invoice-inv-001?entity_id=e1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+
+	pr := parseResponse(t, resp)
+	if pr.Error == nil || pr.Error.Code != "invalid_request" {
+		t.Fatalf("expected invalid_request error, got %+v", pr.Error)
+	}
+	if !strings.Contains(pr.Error.Message, "trace_id") {
+		t.Errorf("expected message about trace_id, got: %s", pr.Error.Message)
+	}
 }

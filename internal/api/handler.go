@@ -62,10 +62,15 @@ func (h *Handler) GetContext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.EntityID == "" {
+		writeError(w, http.StatusBadRequest, traceID, "invalid_request", "entity_id is required")
+		return
+	}
+
 	entityID := req.EntityID
 	bookID := r.URL.Query().Get("book_id")
 
-	if h.svc != nil && entityID != "" {
+	if h.svc != nil {
 		if bookID != "" {
 			if resolved, err := h.svc.ResolveBook(r.Context(), entityID, bookID); err == nil {
 				bookID = resolved
@@ -322,19 +327,28 @@ func (h *Handler) GetResource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	entityID := r.URL.Query().Get("entity_id")
+	traceID := r.URL.Query().Get("trace_id")
+
+	if entityID == "" {
+		writeError(w, http.StatusBadRequest, traceID, "invalid_request", "entity_id is required")
+		return
+	}
+	if traceID == "" {
+		writeError(w, http.StatusBadRequest, "", "invalid_request", "trace_id is required")
+		return
+	}
+
 	parts := strings.SplitN(resourceURI, "://", 2)
 	if len(parts) != 2 {
-		writeError(w, http.StatusBadRequest, "", "invalid_request", "invalid resource uri")
+		writeError(w, http.StatusBadRequest, traceID, "invalid_request", "invalid resource uri")
 		return
 	}
 	path := strings.SplitN(parts[1], "/", 2)
 	if len(path) < 2 {
-		writeError(w, http.StatusBadRequest, "", "invalid_request", "invalid resource uri")
+		writeError(w, http.StatusBadRequest, traceID, "invalid_request", "invalid resource uri")
 		return
 	}
-
-	entityID := r.URL.Query().Get("entity_id")
-	traceID := r.URL.Query().Get("trace_id")
 
 	var result any
 	var err error
@@ -358,7 +372,13 @@ func (h *Handler) GetResource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	data, _ := json.Marshal(result)
+	writeJSON(w, http.StatusOK, &provider.ProviderResponse{
+		Status:            "ok",
+		Data:              data,
+		ExternalRequestID: uuid.NewString(),
+		TraceID:           traceID,
+	})
 }
 
 func (h *Handler) executeCapability(ctx context.Context, entityID, capabilityID string, req provider.ProviderRequest) (any, error) {

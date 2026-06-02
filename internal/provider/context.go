@@ -5,10 +5,11 @@ import "context"
 type contextKey string
 
 const (
-	TraceIDContextKey        contextKey = "provider_trace_id"
-	CapabilityIDContextKey   contextKey = "provider_capability_id"
-	IdempotencyKeyContextKey contextKey = "provider_idempotency_key"
-	ActorIDContextKey        contextKey = "provider_actor_id"
+	TraceIDContextKey         contextKey = "provider_trace_id"
+	CapabilityIDContextKey    contextKey = "provider_capability_id"
+	IdempotencyKeyContextKey  contextKey = "provider_idempotency_key"
+	ActorIDContextKey         contextKey = "provider_actor_id"
+	ApprovalGrantIDContextKey contextKey = "provider_approval_grant_id"
 )
 
 func ContextWithTraceID(ctx context.Context, v string) context.Context {
@@ -44,5 +45,14 @@ func ContextWithActorID(ctx context.Context, v string) context.Context {
 
 func ActorIDFromContext(ctx context.Context) string {
 	s, _ := ctx.Value(ActorIDContextKey).(string)
+	return s
+}
+
+func ContextWithApprovalGrantID(ctx context.Context, v string) context.Context {
+	return context.WithValue(ctx, ApprovalGrantIDContextKey, v)
+}
+
+func ApprovalGrantIDFromContext(ctx context.Context) string {
+	s, _ := ctx.Value(ApprovalGrantIDContextKey).(string)
 	return s
 }

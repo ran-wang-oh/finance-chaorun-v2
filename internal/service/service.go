@@ -839,24 +839,27 @@ func (s *Service) logAudit(ctx context.Context, entityID, bookID, actorID, actio
 	traceID := provider.TraceIDFromContext(ctx)
 	capabilityID := provider.CapabilityIDFromContext(ctx)
 	idempotencyKey := provider.IdempotencyKeyFromContext(ctx)
+	approvalGrantID := provider.ApprovalGrantIDFromContext(ctx)
 	if actorID == "" {
 		actorID = provider.ActorIDFromContext(ctx)
 	}
 	payload, _ := json.Marshal(map[string]string{"ref": objectRef, "details": details})
 	s.auditLog.Append(ctx, &domain.AuditEntry{
-		ID:             uuid.NewString(),
-		EntityID:       entityID,
-		BookID:         bookID,
-		CapabilityID:   capabilityID,
-		TraceID:        traceID,
-		IdempotencyKey: idempotencyKey,
-		ActorType:      "user",
-		ActorID:        actorID,
-		Action:         action,
-		ObjectType:     objectType,
-		ObjectID:       objectID,
-		Outcome:        domain.AuditOutcomeSuccess,
-		Payload:        payload,
+		ID:               uuid.NewString(),
+		EntityID:         entityID,
+		BookID:           bookID,
+		CapabilityID:     capabilityID,
+		V2CapabilityID:   capabilityID,
+		TraceID:          traceID,
+		IdempotencyKey:   idempotencyKey,
+		ApprovalGrantID:  approvalGrantID,
+		ActorType:        "user",
+		ActorID:          actorID,
+		Action:           action,
+		ObjectType:       objectType,
+		ObjectID:         objectID,
+		Outcome:          domain.AuditOutcomeSuccess,
+		Payload:          payload,
 	})
 }
 
