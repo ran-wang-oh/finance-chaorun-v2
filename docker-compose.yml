@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: chaorun_dev
       POSTGRES_DB: chaorun_finance
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

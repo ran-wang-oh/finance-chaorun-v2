@@ -16,7 +16,7 @@ func testDSN() string {
 	if dsn := os.Getenv("DATABASE_DSN"); dsn != "" {
 		return dsn
 	}
-	return "postgres://chaorun:chaorun_dev@localhost:5433/chaorun_finance?sslmode=disable"
+	return "postgres://chaorun:chaorun_dev@localhost:5432/chaorun_finance?sslmode=disable"
 }
 
 func connectTestDB(t *testing.T) *DB {

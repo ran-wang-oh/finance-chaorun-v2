@@ -4,7 +4,7 @@ start-postgres:
 	docker compose up -d finance-postgres
 	@echo "Waiting for postgres to be healthy..."
 	@until docker compose exec -T finance-postgres pg_isready -U chaorun -d chaorun_finance 2>/dev/null; do sleep 0.5; done
-	@echo "Postgres ready on :5433"
+	@echo "Postgres ready on :5432"
 
 start: start-postgres
 	docker compose up -d finance-provider
@@ -66,7 +66,7 @@ test:
 
 test-integration:
 	@echo "Running integration tests (requires DATABASE_DSN)..."
-	@DATABASE_DSN="postgres://chaorun:chaorun_dev@localhost:5433/chaorun_finance?sslmode=disable" \
+	@DATABASE_DSN="postgres://chaorun:chaorun_dev@localhost:5432/chaorun_finance?sslmode=disable" \
 		go test -count=1 -v ./internal/store/postgres/... -run 'Test.*Store|Test.*Balance|Test.*Audit'
 
 test-all: test test-integration

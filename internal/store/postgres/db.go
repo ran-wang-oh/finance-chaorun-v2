@@ -5,8 +5,10 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,17 +27,29 @@ func Connect(ctx context.Context, dsn string) (*DB, error) {
 		return nil, fmt.Errorf("parse dsn: %w", err)
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("connect: %w", err)
+	var pool *pgxpool.Pool
+	for attempt := 0; attempt < 30; attempt++ {
+		pool, err = pgxpool.NewWithConfig(ctx, cfg)
+		if err != nil {
+			slog.Warn("postgres connect failed, retrying", "attempt", attempt+1, "err", err)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		if err := pool.Ping(ctx); err != nil {
+			pool.Close()
+			slog.Warn("postgres ping failed, retrying", "attempt", attempt+1, "err", err)
+			time.Sleep(time.Second)
+			continue
+		}
+
+		return &DB{Pool: pool}, nil
 	}
 
-	if err := pool.Ping(ctx); err != nil {
+	if pool != nil {
 		pool.Close()
-		return nil, fmt.Errorf("ping: %w", err)
 	}
-
-	return &DB{Pool: pool}, nil
+	return nil, fmt.Errorf("ping: %w", err)
 }
 
 func (db *DB) Close() {

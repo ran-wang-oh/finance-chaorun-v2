@@ -541,8 +541,11 @@ func (s *Service) PostJournalEntry(ctx context.Context, entityID, journalID, act
 	}
 
 	entry, err := s.journals.Get(ctx, entityID, journalID)
-	if err != nil || entry == nil {
-		return entry, err
+	if err != nil {
+		return nil, err
+	}
+	if entry == nil {
+		return nil, fmt.Errorf("journal entry not found: %s", journalID)
 	}
 	if s.periods != nil {
 		if closed, _ := s.periods.IsClosed(ctx, entityID, entry.BookID, entry.Period); closed {
@@ -598,8 +601,11 @@ func (s *Service) VoidJournalEntry(ctx context.Context, entityID, journalID, act
 	}
 
 	entry, err := s.journals.Get(ctx, entityID, journalID)
-	if err != nil || entry == nil {
+	if err != nil {
 		return nil, err
+	}
+	if entry == nil {
+		return nil, fmt.Errorf("journal entry not found: %s", journalID)
 	}
 	if s.periods != nil {
 		if closed, _ := s.periods.IsClosed(ctx, entityID, entry.BookID, entry.Period); closed {

@@ -32,7 +32,7 @@ func Default() *Config {
 			IdleTimeout:  durationEnv("IDLE_TIMEOUT_SECONDS", 60*time.Second),
 		},
 		Database: DatabaseConfig{
-			DSN: env("DATABASE_DSN", "postgres://chaorun:chaorun_dev@localhost:5433/chaorun_finance?sslmode=disable"),
+			DSN: env("DATABASE_DSN", "postgres://chaorun:chaorun_dev@localhost:5432/chaorun_finance?sslmode=disable"),
 		},
 	}
 }
