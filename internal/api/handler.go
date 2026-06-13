@@ -291,6 +291,7 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 				CapabilityID:   capabilityID,
 				IdempotencyKey: req.IdempotencyKey,
 				InputHash:      HashInput(req.Input),
+				Result:         []byte("{}"),
 				Status:         "failed",
 			})
 		}

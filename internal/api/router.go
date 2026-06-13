@@ -13,6 +13,10 @@ func Routes(svc *service.Service) http.Handler {
 	return routesWithHandler(NewHandler(svc))
 }
 
+func RoutesWithIdempotency(svc *service.Service, idempStore IdempotencyStore) http.Handler {
+	return routesWithHandler(NewHandler(svc).WithIdempotencyStore(idempStore))
+}
+
 func routesWithHandler(h *Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
