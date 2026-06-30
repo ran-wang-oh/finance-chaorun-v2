@@ -7,6 +7,42 @@ type Actor struct {
 	ID   string `json:"id"`
 }
 
+// V3InvocationContext is the context envelope sent by V3 HTTPExecutor.
+type V3InvocationContext struct {
+	EntityID          string `json:"entity_id"`
+	ActorID           string `json:"actor_id"`
+	AgentID           string `json:"agent_id"`
+	RunID             string `json:"run_id"`
+	StepID            string `json:"step_id"`
+	TraceID           string `json:"trace_id"`
+	ApprovalRef       string `json:"approval_ref,omitempty"`
+	GrantRef          string `json:"grant_ref,omitempty"`
+	CapabilityID      string `json:"capability_id"`
+	CapabilityVersion string `json:"capability_version,omitempty"`
+	TargetAgentID     string `json:"target_agent_id,omitempty"`
+}
+
+// V3Request is the V3 connector envelope: {context, input}.
+type V3Request struct {
+	Context V3InvocationContext `json:"context"`
+	Input   json.RawMessage    `json:"input"`
+}
+
+// ToProviderRequest converts a V3 request to the internal ProviderRequest format.
+func (r *V3Request) ToProviderRequest(capabilityID string) ProviderRequest {
+	return ProviderRequest{
+		EntityID: r.Context.EntityID,
+		Actor: Actor{
+			Type: "agent",
+			ID:   r.Context.ActorID,
+		},
+		Input:          r.Input,
+		TraceID:        r.Context.TraceID,
+		CapabilityID:   capabilityID,
+		IdempotencyKey: r.Context.StepID, // V3 uses step_id for idempotency
+	}
+}
+
 type ProviderRequest struct {
 	EntityID       string          `json:"entity_id"`
 	CapabilityID   string          `json:"capability_id"`

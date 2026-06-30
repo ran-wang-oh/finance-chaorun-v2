@@ -218,6 +218,44 @@ func (h *Handler) Validate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// ExecuteV3 handles V3 connector requests: POST /v1/capabilities/{id}
+// Accepts the V3 envelope {context: {...}, input: ...} and translates to internal format.
+func (h *Handler) ExecuteV3(w http.ResponseWriter, r *http.Request) {
+	capabilityID := chi.URLParam(r, "capability_id")
+	cap := h.findCapability(capabilityID)
+	if cap == nil {
+		writeError(w, http.StatusNotFound, "", "not_found", "capability not found: "+capabilityID)
+		return
+	}
+
+	var v3req provider.V3Request
+	if err := json.NewDecoder(r.Body).Decode(&v3req); err != nil {
+		writeError(w, http.StatusBadRequest, "", "invalid_request", "malformed V3 request body")
+		return
+	}
+
+	// Fall back to V2 format if context is empty (backward compat)
+	if v3req.Context.EntityID == "" {
+		h.Execute(w, r)
+		return
+	}
+
+	req := v3req.ToProviderRequest(capabilityID)
+	// Allow X-Idempotency-Key header to override (V3 sends it via header)
+	if idemKey := r.Header.Get("X-Idempotency-Key"); idemKey != "" {
+		req.IdempotencyKey = idemKey
+	}
+
+	if req.TraceID == "" {
+		req.TraceID = r.Header.Get("X-Request-Id")
+	}
+	if req.TraceID == "" {
+		req.TraceID = uuid.NewString()
+	}
+
+	h.executeRequest(w, r, capabilityID, cap, req)
+}
+
 func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "capability_id")
 	cap := h.findCapability(capabilityID)
@@ -232,6 +270,13 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Support X-Idempotency-Key header as fallback (V3 HTTPExecutor)
+	if req.IdempotencyKey == "" {
+		if idemKey := r.Header.Get("X-Idempotency-Key"); idemKey != "" {
+			req.IdempotencyKey = idemKey
+		}
+	}
+
 	traceID := req.TraceID
 
 	if req.TraceID == "" {
@@ -242,6 +287,16 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 	if req.EntityID == "" {
 		writeError(w, http.StatusBadRequest, traceID, "invalid_request", "entity_id is required")
 		return
+	}
+
+	h.executeRequest(w, r, capabilityID, cap, req)
+}
+
+// executeRequest is the shared execution path for both V2 and V3 requests.
+func (h *Handler) executeRequest(w http.ResponseWriter, r *http.Request, capabilityID string, cap *capability.Capability, req provider.ProviderRequest) {
+	traceID := req.TraceID
+	if traceID == "" {
+		traceID = uuid.NewString()
 	}
 
 	// Idempotency check for write operations

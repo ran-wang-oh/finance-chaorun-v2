@@ -24,6 +24,7 @@ func routesWithHandler(h *Handler) http.Handler {
 	r.Use(middleware.RequestID)
 
 	r.Get("/healthz", h.Healthz)
+	r.Get("/health", h.Healthz) // V3 connector health check alias
 	r.Get("/readyz", h.Readyz)
 
 	r.Route("/v1", func(r chi.Router) {
@@ -31,6 +32,9 @@ func routesWithHandler(h *Handler) http.Handler {
 		r.Post("/context", h.GetContext)
 
 		r.Route("/capabilities/{capability_id}", func(r chi.Router) {
+			// V3 HTTPExecutor path (POST directly on /v1/capabilities/{id})
+			r.Post("/", h.ExecuteV3)
+			// Legacy paths (backward compatible)
 			r.Post("/preview", h.Preview)
 			r.Post("/validate", h.Validate)
 			r.Post("/execute", h.Execute)
