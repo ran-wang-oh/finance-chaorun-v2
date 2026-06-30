@@ -26,7 +26,7 @@ type DatabaseConfig struct {
 func Default() *Config {
 	return &Config{
 		Server: ServerConfig{
-			HTTPAddr:     env("HTTP_ADDR", ":8082"),
+			HTTPAddr:     env("HTTP_ADDR", ":9000"),
 			ReadTimeout:  durationEnv("READ_TIMEOUT_SECONDS", 10*time.Second),
 			WriteTimeout: durationEnv("WRITE_TIMEOUT_SECONDS", 30*time.Second),
 			IdleTimeout:  durationEnv("IDLE_TIMEOUT_SECONDS", 60*time.Second),

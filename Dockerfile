@@ -9,5 +9,5 @@ RUN CGO_ENABLED=0 go build -o /bin/finance-provider ./cmd/server/
 
 FROM alpine:3.21
 COPY --from=build /bin/finance-provider /bin/finance-provider
-EXPOSE 8082
+EXPOSE 9000
 ENTRYPOINT ["/bin/finance-provider"]
